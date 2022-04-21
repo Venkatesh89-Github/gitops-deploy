@@ -1,0 +1,70 @@
+---
+namespace: namespace
+
+# -- Router shard domain name
+domain: fo-sut.pintc010042040201050a001.sut.azr.fusionoperate.io
+
+zookeeper:
+  # -- Number of zookeeper replicas to be created
+  replicas: 3
+  storage:
+    # -- Set the type of [zookeper storage](https://docs.fusionoperate.io/docs/data_services/kafka/kass-2.0/provisioning/storage/)
+    type: persistent-claim
+    # -- Please do not chage this value if using "persistent-claim" type storage
+    class: managed-premium
+    # -- When set this value to true the PVC claims will be deleted upon deletion of the kafka cluster
+    deleteClaim: false
+    # -- Zookeper storage size
+    size: 1Gi
+
+kafkabroker:
+  name: kafkabroker
+  version: 2.7.0
+  replicas: 3
+  resources:
+    requests:
+      memory: 64Gi
+      cpu: "8"
+    limits:
+      memory: 64Gi
+      cpu: "12"
+  authorization:
+    type: simple
+  config:
+    interbrokerprotocolversion: '2.7'
+    logmessageformatversion: '2.7'
+    offsetstopicreplicationfactor: 3
+    transactionstatelogminisr: 2
+    transactionstatelogreplicationfactor: 3
+    logcleanerdedupebuffersize: 2097152
+  listeners:
+    authentication:
+      type: tls
+    name: external
+    port: 9092
+    tls: true
+    type: route
+  storage:
+    class: managed-premium
+    deleteClaim: false
+    size: 50Gi
+    type: persistent-claim
+  usingDedicatedNodes: true
+  annotation: tenant=gpp-dev
+
+entityOperator:
+  topicOperator:
+    rootLoggerlevel: INFO
+    reconciliationIntervalSeconds: 60
+  userOperator:
+    rootLoggerlevel: INFO
+    reconciliationIntervalSeconds: 60
+
+monitoring:
+  enable: true
+
+nodeSelector:
+  key: my-node-key
+  label: my-node-label
+
+tolerations: []

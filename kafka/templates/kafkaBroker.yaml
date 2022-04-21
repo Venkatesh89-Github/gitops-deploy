@@ -1,0 +1,115 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: {{ .Values.kafkabroker.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  entityOperator:
+    topicOperator:
+      logging:
+        loggers:
+          rootLogger.level: {{ .Values.entityOperator.topicOperator.rootLoggerlevel }}
+        type: inline
+      reconciliationIntervalSeconds: {{ .Values.entityOperator.topicOperator.reconciliationIntervalSeconds }}
+      watchedNamespace: {{ .Values.namespace }}
+    userOperator:
+      logging:
+        loggers:
+          rootLogger.level: {{ .Values.entityOperator.userOperator.rootLoggerlevel }}
+        type: inline
+      reconciliationIntervalSeconds: {{ .Values.entityOperator.topicOperator.reconciliationIntervalSeconds }}
+      watchedNamespace: {{ .Values.namespace }}
+  kafka:
+    authorization:
+      type: {{ .Values.kafkabroker.authorization.type }}
+    config:
+      inter.broker.protocol.version: {{ .Values.kafkabroker.config.interbrokerprotocolversion }}
+      log.message.format.version: {{ .Values.kafkabroker.config.logmessageformatversion }}
+      offsets.topic.replication.factor: {{ .Values.kafkabroker.config.offsetstopicreplicationfactor }}
+      transaction.state.log.min.isr: {{ .Values.kafkabroker.config.transactionstatelogminisr }}
+      transaction.state.log.replication.factor: {{ .Values.kafkabroker.config.transactionstatelogreplicationfactor }}
+      log.cleaner.dedupe.buffer.size: {{ .Values.kafkabroker.config.logcleanerdedupebuffersize }}
+    listeners:
+      - authentication:
+          type: {{ .Values.kafkabroker.listeners.authentication.type }}
+        name: {{ .Values.kafkabroker.listeners.name }}
+        port: {{ .Values.kafkabroker.listeners.port }}
+        tls: {{ .Values.kafkabroker.listeners.tls }}
+        type: {{ .Values.kafkabroker.listeners.type }}
+        configuration:
+          bootstrap:
+            host: {{ .Values.kafkabroker.name }}-ext-bst.{{ .Values.domain }}
+          brokers:
+            - broker: 0
+              host: {{ .Values.kafkabroker.name }}-0.{{ .Values.domain }}
+            - broker: 1
+              host: {{ .Values.kafkabroker.name }}-1.{{ .Values.domain }}
+            - broker: 2
+              host: {{ .Values.kafkabroker.name }}-2.{{ .Values.domain }}
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          key: kafka-metrics-config.yml
+          name: {{ .Values.kafkabroker.name }}-monitoring-configmap
+    replicas: {{ .Values.kafkabroker.replicas }}
+    storage:
+      type: {{ .Values.kafkabroker.storage.type }}
+      {{- if eq .Values.kafkabroker.storage.type "persistent-claim" }}
+      class: {{ .Values.kafkabroker.storage.class }}
+      deleteClaim: {{ .Values.kafkabroker.storage.deleteClaim }}
+      size: {{ .Values.kafkabroker.storage.size }}
+      {{- end }}
+    {{- if .Values.kafkabroker.usingDedicatedNodes }}
+    template:
+      clusterCaCert:
+        metadata:
+          annotations:
+            kubed.appscode.com/sync: {{ .Values.kafkabroker.annotation }}
+      pod:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: {{ .Values.nodeSelector.key }}
+                      operator: In
+                      values:
+                        - {{ .Values.nodeSelector.label }}
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                    - key: strimzi.io/name
+                      operator: In
+                      values:
+                        - {{ .Values.kafkabroker.name }}-kafka
+                topologyKey: kubernetes.io/hostname
+        {{- with .Values.tolerations }}
+        tolerations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+     {{- end }}
+    version: {{ .Values.kafkabroker.version }}
+    resources:
+      requests:
+        memory: {{ .Values.kafkabroker.resources.requests.memory }}
+        cpu: {{ .Values.kafkabroker.resources.requests.cpu }}
+      limits:
+        memory: {{ .Values.kafkabroker.resources.limits.memory }}
+        cpu: {{ .Values.kafkabroker.resources.limits.cpu }}
+  zookeeper:
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          key: zookeeper-metrics-config.yml
+          name: {{ .Values.kafkabroker.name }}-monitoring-configmap
+    replicas: {{ .Values.zookeeper.replicas }}
+    storage:
+      type: {{ .Values.zookeeper.storage.type }}
+      {{- if eq .Values.zookeeper.storage.type "persistent-claim" }}
+      class: {{ .Values.zookeeper.storage.class }}
+      deleteClaim: {{ .Values.zookeeper.storage.deleteClaim }}
+      size: {{ .Values.zookeeper.storage.size }}
+      {{- end }}
