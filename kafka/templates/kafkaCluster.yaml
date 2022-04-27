@@ -1,0 +1,151 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: {{ .Values.kafka.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  entityOperator:
+    topicOperator:
+      logging:
+        loggers:
+          rootLogger.level: {{ .Values.entityOperator.topicOperator.rootLoggerlevel }}
+        type: inline
+      reconciliationIntervalSeconds: {{ .Values.entityOperator.topicOperator.reconciliationIntervalSeconds }}
+      watchedNamespace: {{ .Values.namespace }}
+    userOperator:
+      logging:
+        loggers:
+          rootLogger.level: {{ .Values.entityOperator.userOperator.rootLoggerlevel }}
+        type: inline
+      reconciliationIntervalSeconds: {{ .Values.entityOperator.topicOperator.reconciliationIntervalSeconds }}
+      watchedNamespace: {{ .Values.namespace }}
+  kafka:
+    authorization:
+      type: {{ .Values.kafka.authorization.type }}
+    config:
+      inter.broker.protocol.version: {{ .Values.kafka.config.interbrokerprotocolversion }}
+      log.message.format.version: {{ .Values.kafka.config.logmessageformatversion }}
+      offsets.topic.replication.factor: {{ .Values.kafka.replicas }}
+      transaction.state.log.min.isr: {{ .Values.kafka.replicas }}
+      transaction.state.log.replication.factor: {{ .Values.kafka.replicas }}
+      log.cleaner.dedupe.buffer.size: {{ .Values.kafka.config.logcleanerdedupebuffersize }}
+    listeners:
+      {{- if .Values.kafka.listeners.usesScram }}
+      - authentication:
+          type: scram-sha-512
+        name: scram
+        port: 9093
+        tls: true
+        type: route
+    {{- if or .Values.kafka.listeners.scram.enableLECerts .Values.kafka.listeners.scram.enableRouterSharding }}
+        configuration:
+    {{- end }}
+    {{- if .Values.kafka.listeners.scram.enableLECerts }}
+          brokerCertChainAndKey:
+            secretName: {{ .Values.kafka.name }}-scram-certificate
+            certificate: tls.crt
+            key: tls.key
+    {{- end }}
+    {{- if .Values.kafka.listeners.scram.enableRouterSharding }}
+          bootstrap:
+            host: {{ .Values.kafka.name }}-scram-bsp.{{ .Values.kafka.domain }}
+          brokers:
+            {{- include "kafkahostsname.scram" . | nindent 2 }}
+    {{- end }}
+    {{- end }}
+      {{- if .Values.kafka.listeners.usesTls }}
+      - authentication:
+          type: tls
+        name: tls
+        port: 9092
+        tls: true
+        type: route
+      {{- end }}
+        configuration:
+          bootstrap:
+            host: {{ .Values.kafka.name }}-ext-bst.{{ .Values.kafka.domain }}
+          brokers:
+            - broker: 0
+              host: {{ .Values.kafka.name }}-0.{{ .Values.kafka.domain }}
+            - broker: 1
+              host: {{ .Values.kafka.name }}-1.{{ .Values.kafka.domain }}
+            - broker: 2
+              host: {{ .Values.kafka.name }}-2.{{ .Values.kafka.domain }}
+    {{- if .Values.kafka.monitoring.enable }}
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          key: kafka-metrics-config.yml
+          name: {{ .Values.kafka.name }}-monitoring-configmap
+    {{- end }}
+    replicas: {{ .Values.kafka.replicas }}
+    storage:
+      type: {{ .Values.kafka.storage.type }}
+      {{- if eq .Values.kafka.storage.type "persistent-claim" }}
+      class: {{ .Values.kafka.storage.class }}
+      deleteClaim: {{ .Values.kafka.storage.deleteClaim }}
+      size: {{ .Values.kafka.storage.size }}
+      {{- end }}
+    {{- if or .Values.kafka.dedicatedNodes.enabled .Values.kafka.secretSync.enabled }}
+    template:
+    {{- end }}
+    {{- if .Values.kafka.secretSync.enabled }}
+      clusterCaCert:
+        metadata:
+          annotations:
+            reflector.v1.k8s.emberstack.com/reflection-allowed: 'true'
+            reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: {{ .Values.kafka.secretSync.namespace }}
+            reflector.v1.k8s.emberstack.com/reflection-auto-enabled: 'true'
+            reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: {{ .Values.kafka.secretSync.namespace }}
+    {{- end }}
+    {{- if or .Values.kafka.dedicatedNodes.enabled }}
+      pod:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: {{ .Values.kafka.dedicatedNodes.nodeSelector.key }}
+                      operator: In
+                      values:
+                        - {{ .Values.kafka.dedicatedNodes.nodeSelector.value }}
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchExpressions:
+                    - key: strimzi.io/name
+                      operator: In
+                      values:
+                        - {{ .Values.kafka.name }}-kafka
+                topologyKey: kubernetes.io/hostname
+        tolerations:
+          - key: {{ .Values.kafka.dedicatedNodes.tolerations.key }}
+            value: {{ .Values.kafka.dedicatedNodes.tolerations.value }}
+            effect: {{ .Values.kafka.dedicatedNodes.tolerations.effect }}
+    {{- end }}
+    version: {{ .Values.kafka.version }}
+    resources:
+      requests:
+        memory: {{ .Values.kafka.resources.requests.memory }}
+        cpu: {{ .Values.kafka.resources.requests.cpu }}
+      limits:
+        memory: {{ .Values.kafka.resources.limits.memory }}
+        cpu: {{ .Values.kafka.resources.limits.cpu }}
+  zookeeper:
+    {{- if .Values.kafka.monitoring.enable }}
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          key: zookeeper-metrics-config.yml
+          name: {{ .Values.kafka.name }}-monitoring-configmap
+    {{- end }}
+    replicas: {{ .Values.zookeeper.replicas }}
+    storage:
+      type: {{ .Values.zookeeper.storage.type }}
+      {{- if eq .Values.zookeeper.storage.type "persistent-claim" }}
+      class: {{ .Values.zookeeper.storage.class }}
+      deleteClaim: {{ .Values.zookeeper.storage.deleteClaim }}
+      size: {{ .Values.zookeeper.storage.size }}
+      {{- end }}

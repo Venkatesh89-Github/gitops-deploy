@@ -1,0 +1,7 @@
+---
+apiVersion: v2
+name: kafka
+description: FO opinionated Helm chart for Kafka cluster deployment.
+ Please make sure to go through this [documentation](https://docs.fusionoperate.io/docs/data_services/kafka/kass-2.0/provisioning/kafkacluster/) before consuming this chart.
+type: application
+version: 0.0.1

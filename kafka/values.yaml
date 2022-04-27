@@ -1,0 +1,94 @@
+---
+# -- Namespace of the kafka cluster
+namespace: mynamespace
+
+zookeeper:
+  # -- Number of zookeeper replicas
+  replicas: 3
+  storage:
+    # -- Set the type of [zookeper storage](https://docs.fusionoperate.io/docs/data_services/kafka/kass-2.0/provisioning/storage/)
+    type: persistent-claim
+    # -- Do not change this value if using "persistent-claim" type storage
+    class: managed-premium
+    # -- When set this value to true the PVC claims will be deleted upon deletion of the kafka cluster
+    deleteClaim: false
+    # -- Zookeper storage size
+    size: 1Gi
+
+kafka:
+# -- Name of the kafka cluster
+  name: my-kafka-cluster
+# -- kafka version
+  version: 2.7.0
+# -- Number of kafka broker replicas
+  replicas: 3
+# -- Router shard domain name
+  domain: my-router-shard-domain
+  resources:
+    requests:
+    # -- kafka container resource requests
+      memory: 1Gi
+      cpu: "2"
+    limits:
+    # -- kafka container resource limits
+      memory: 2Gi
+      cpu: "4"
+  authorization:
+    # -- Keep it default
+    type: simple
+  # -- kafka config properties - keep it default
+  config:
+    interbrokerprotocolversion: '2.7'
+    logmessageformatversion: '2.7'
+    logcleanerdedupebuffersize: 2097152
+# -- kafka Listeners. please read [About Listneres](https://docs.fusionoperate.io/docs/data_services/kafka/kass-2.0/provisioning/kafkacluster/#listener-configuration) to understand more about listeners
+  listeners:
+# -- Set this to true always as we want to use scram based listener
+    usesScram: true
+    scram:
+      # -- if set to true, the specified domain name will be used in router sharding for creating listner routes
+      enableRouterSharding: true
+      # -- Set to true if u want to use a LE certificate for this listener
+      enableLECerts: true
+      # -- Name of the tls secret of router shard
+      routerShardSecret: sourceSecret
+# -- Set this to true always.
+    usesTls: true
+# -- Kafka storage
+  storage:
+    # -- Set the type of [kafka storage](https://docs.fusionoperate.io/docs/data_services/kafka/kass-2.0/provisioning/storage/)
+    type: persistent-claim
+    # -- Do not change this value if using "persistent-claim" type storage
+    class: managed-premium
+    # -- When set this value to true the PVC claims will be deleted upon deletion of the kafka cluster
+    deleteClaim: false
+    # -- kafka storage size
+    size: 1Gi
+  dedicatedNodes:
+  # -- Set this to true to use dedicated nodes
+    enabled: false
+    nodeSelector:
+    # -- Set the appropriate node key and labels
+      key: my-node-label
+      value: my-node-labelvalue
+    tolerations:
+    # -- Set the appropriate toleration key and value
+      key: my-node-tolerationkey
+      value: my-node-tolerationvalue
+      effect: NoSchedule
+  secretSync:
+  # -- if set to true, broker CA cert as a secret will be synched to namespace provided (set to false if using LE certs as you dont need trust store)
+    enabled: false
+  # -- Namespace name to sync the CA cert secret.
+    namespace: destinationNamespace
+# -- Set to true if you want to deploy monitoring relate config for kafka cluster
+  monitoring:
+    enable: false
+# -- Entity operator properties - keep it default
+entityOperator:
+  topicOperator:
+    rootLoggerlevel: INFO
+    reconciliationIntervalSeconds: 60
+  userOperator:
+    rootLoggerlevel: INFO
+    reconciliationIntervalSeconds: 60
