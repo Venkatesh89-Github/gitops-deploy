@@ -10,7 +10,7 @@ zookeeper:
     type: persistent-claim
     # -- Do not change this value if using "persistent-claim" type storage
     class: managed-premium
-    # -- When set this value to true the PVC claims will be deleted upon deletion of the kafka cluster
+    # -- When set to true the PVC claims will be deleted upon deletion of the kafka cluster
     deleteClaim: false
     # -- Zookeper storage size
     size: 1Gi
@@ -52,15 +52,15 @@ kafka:
       enableLECerts: true
       # -- Name of the tls secret of router shard
       routerShardSecret: sourceSecret
-# -- Set this to true always.
     usesTls: true
+# -- Set this to true always.
 # -- Kafka storage
   storage:
     # -- Set the type of [kafka storage](https://docs.fusionoperate.io/docs/data_services/kafka/kass-2.0/provisioning/storage/)
     type: persistent-claim
     # -- Do not change this value if using "persistent-claim" type storage
     class: managed-premium
-    # -- When set this value to true the PVC claims will be deleted upon deletion of the kafka cluster
+    # -- When set to true the PVC claims will be deleted upon deletion of the kafka cluster
     deleteClaim: false
     # -- kafka storage size
     size: 1Gi
